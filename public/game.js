@@ -11,6 +11,7 @@ const leaderboardList = document.getElementById('leaderboard-list');
 
 const GRID_SIZE = 20;
 const CELL_SIZE = canvas.width / GRID_SIZE;
+const DB_URL = 'https://kvdb.io/EUhb41f6a5NM8yKSEkaDqG/scores';
 
 let snake = [];
 let food = { x: 0, y: 0 };
@@ -22,11 +23,7 @@ let gameLoop = null;
 let speed = 150;
 
 function init() {
-    snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
-    ];
+    snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
     direction = { x: 1, y: 0 };
     nextDirection = { x: 1, y: 0 };
     score = 0;
@@ -36,41 +33,28 @@ function init() {
 }
 
 function spawnFood() {
-    let valid = false;
-    while (!valid) {
+    do {
         food.x = Math.floor(Math.random() * GRID_SIZE);
         food.y = Math.floor(Math.random() * GRID_SIZE);
-        valid = !snake.some(segment => segment.x === food.x && segment.y === food.y);
-    }
+    } while (snake.some(s => s.x === food.x && s.y === food.y));
 }
 
 function update() {
     direction = { ...nextDirection };
+    const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
-    const head = {
-        x: snake[0].x + direction.x,
-        y: snake[0].y + direction.y
-    };
-
-    if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
-        gameOver();
-        return;
-    }
-
-    if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+    if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE ||
+        snake.some(s => s.x === head.x && s.y === head.y)) {
         gameOver();
         return;
     }
 
     snake.unshift(head);
-
     if (head.x === food.x && head.y === food.y) {
         score += 10;
         updateScore();
         spawnFood();
-        if (speed > 80) {
-            speed -= 2;
-        }
+        if (speed > 80) speed -= 2;
     } else {
         snake.pop();
     }
@@ -86,75 +70,27 @@ function draw() {
         ctx.moveTo(i * CELL_SIZE, 0);
         ctx.lineTo(i * CELL_SIZE, canvas.height);
         ctx.stroke();
-        ctx.beginPath();
         ctx.moveTo(0, i * CELL_SIZE);
         ctx.lineTo(canvas.width, i * CELL_SIZE);
         ctx.stroke();
     }
 
-    snake.forEach((segment, index) => {
-        const gradient = ctx.createRadialGradient(
-            segment.x * CELL_SIZE + CELL_SIZE / 2,
-            segment.y * CELL_SIZE + CELL_SIZE / 2,
-            0,
-            segment.x * CELL_SIZE + CELL_SIZE / 2,
-            segment.y * CELL_SIZE + CELL_SIZE / 2,
-            CELL_SIZE / 2
-        );
-
-        if (index === 0) {
-            gradient.addColorStop(0, '#6ee7b7');
-            gradient.addColorStop(1, '#22c55e');
-        } else {
-            gradient.addColorStop(0, '#4ade80');
-            gradient.addColorStop(1, '#16a34a');
-        }
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.roundRect(
-            segment.x * CELL_SIZE + 1,
-            segment.y * CELL_SIZE + 1,
-            CELL_SIZE - 2,
-            CELL_SIZE - 2,
-            4
-        );
-        ctx.fill();
+    snake.forEach((seg, i) => {
+        ctx.fillStyle = i === 0 ? '#6ee7b7' : '#4ade80';
+        ctx.fillRect(seg.x * CELL_SIZE + 1, seg.y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
     });
 
-    const foodGradient = ctx.createRadialGradient(
-        food.x * CELL_SIZE + CELL_SIZE / 2,
-        food.y * CELL_SIZE + CELL_SIZE / 2,
-        0,
-        food.x * CELL_SIZE + CELL_SIZE / 2,
-        food.y * CELL_SIZE + CELL_SIZE / 2,
-        CELL_SIZE / 2
-    );
-    foodGradient.addColorStop(0, '#fca5a5');
-    foodGradient.addColorStop(1, '#ef4444');
-
-    ctx.fillStyle = foodGradient;
+    ctx.fillStyle = '#ef4444';
     ctx.beginPath();
-    ctx.arc(
-        food.x * CELL_SIZE + CELL_SIZE / 2,
-        food.y * CELL_SIZE + CELL_SIZE / 2,
-        CELL_SIZE / 2 - 2,
-        0,
-        Math.PI * 2
-    );
+    ctx.arc(food.x * CELL_SIZE + CELL_SIZE/2, food.y * CELL_SIZE + CELL_SIZE/2, CELL_SIZE/2 - 2, 0, Math.PI * 2);
     ctx.fill();
 }
 
-function updateScore() {
-    currentScoreEl.textContent = score;
-}
+function updateScore() { currentScoreEl.textContent = score; }
 
 function gameOver() {
     gameRunning = false;
-    if (gameLoop) {
-        clearTimeout(gameLoop);
-        gameLoop = null;
-    }
+    clearTimeout(gameLoop);
     finalScoreEl.textContent = score;
     modal.classList.remove('hidden');
     startBtn.textContent = 'Hrat znovu';
@@ -163,152 +99,98 @@ function gameOver() {
 
 function startGame() {
     if (gameRunning) return;
-
     init();
     gameRunning = true;
     startBtn.disabled = true;
     modal.classList.add('hidden');
-
-    function tick() {
+    (function tick() {
         if (!gameRunning) return;
         update();
         draw();
         gameLoop = setTimeout(tick, speed);
-    }
-
-    tick();
+    })();
 }
 
-function handleKeydown(e) {
+document.addEventListener('keydown', e => {
     if (!gameRunning) {
-        if (e.key === ' ' || e.key === 'Enter') {
-            startGame();
-        }
+        if (e.key === ' ' || e.key === 'Enter') startGame();
         return;
     }
+    const key = e.key.toLowerCase();
+    if ((key === 'arrowup' || key === 'w') && direction.y !== 1) nextDirection = { x: 0, y: -1 };
+    if ((key === 'arrowdown' || key === 's') && direction.y !== -1) nextDirection = { x: 0, y: 1 };
+    if ((key === 'arrowleft' || key === 'a') && direction.x !== 1) nextDirection = { x: -1, y: 0 };
+    if ((key === 'arrowright' || key === 'd') && direction.x !== -1) nextDirection = { x: 1, y: 0 };
+});
 
-    switch (e.key) {
-        case 'ArrowUp':
-        case 'w':
-        case 'W':
-            if (direction.y !== 1) {
-                nextDirection = { x: 0, y: -1 };
-            }
-            break;
-        case 'ArrowDown':
-        case 's':
-        case 'S':
-            if (direction.y !== -1) {
-                nextDirection = { x: 0, y: 1 };
-            }
-            break;
-        case 'ArrowLeft':
-        case 'a':
-        case 'A':
-            if (direction.x !== 1) {
-                nextDirection = { x: -1, y: 0 };
-            }
-            break;
-        case 'ArrowRight':
-        case 'd':
-        case 'D':
-            if (direction.x !== -1) {
-                nextDirection = { x: 1, y: 0 };
-            }
-            break;
-    }
-}
-
-// === LEADERBOARD FUNCTIONS ===
-
+// LEADERBOARD - kvdb.io (free, no registration)
 async function loadLeaderboard() {
     try {
-        const response = await fetch('/api/leaderboard');
-        const data = await response.json();
-        const scores = data.scores || [];
-
-        if (scores.length > 0) {
+        const res = await fetch(DB_URL);
+        if (!res.ok) throw new Error();
+        const scores = await res.json();
+        if (scores && scores.length > 0) {
             renderLeaderboard(scores);
         } else {
             leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
         }
-    } catch (error) {
-        console.error('Chyba pri nacitani:', error);
-        leaderboardList.innerHTML = '<p class="loading">Nelze nacist zebricek</p>';
+    } catch {
+        leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
     }
 }
 
 function renderLeaderboard(scores) {
-    leaderboardList.innerHTML = scores.map((entry, index) => {
-        let rankClass = '';
-        if (index === 0) rankClass = 'gold';
-        else if (index === 1) rankClass = 'silver';
-        else if (index === 2) rankClass = 'bronze';
-
-        return `
-            <div class="leaderboard-item">
-                <span class="rank ${rankClass}">#${index + 1}</span>
-                <span class="name">${escapeHtml(entry.name)}</span>
-                <span class="score">${entry.score}</span>
-            </div>
-        `;
-    }).join('');
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    leaderboardList.innerHTML = scores.map((e, i) => `
+        <div class="leaderboard-item">
+            <span class="rank ${i===0?'gold':i===1?'silver':i===2?'bronze':''}">#${i+1}</span>
+            <span class="name">${e.name}</span>
+            <span class="score">${e.score}</span>
+        </div>
+    `).join('');
 }
 
 async function submitScore(name, playerScore) {
     try {
-        const response = await fetch('/api/leaderboard', {
-            method: 'POST',
+        let scores = [];
+        try {
+            const res = await fetch(DB_URL);
+            if (res.ok) scores = await res.json() || [];
+        } catch {}
+
+        scores.push({ name: name.substring(0, 20), score: playerScore });
+        scores.sort((a, b) => b.score - a.score);
+        scores = scores.slice(0, 10);
+
+        await fetch(DB_URL, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, score: playerScore })
+            body: JSON.stringify(scores)
         });
 
-        const data = await response.json();
-
-        if (data.scores) {
-            renderLeaderboard(data.scores);
-        } else {
-            loadLeaderboard();
-        }
-    } catch (error) {
-        console.error('Chyba pri ukladani:', error);
+        renderLeaderboard(scores);
+    } catch (err) {
+        console.error(err);
     }
 }
 
-// === EVENT LISTENERS ===
-
-scoreForm.addEventListener('submit', async (e) => {
+scoreForm.addEventListener('submit', async e => {
     e.preventDefault();
     const name = playerNameInput.value.trim();
     if (name && score > 0) {
-        const submitBtn = scoreForm.querySelector('button');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Ukladam...';
-
+        const btn = scoreForm.querySelector('button');
+        btn.disabled = true;
+        btn.textContent = 'Ukladam...';
         await submitScore(name, score);
-
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Ulozit skore';
+        btn.disabled = false;
+        btn.textContent = 'Ulozit skore';
         modal.classList.add('hidden');
         playerNameInput.value = '';
     }
 });
 
-playAgainBtn.addEventListener('click', () => {
-    modal.classList.add('hidden');
-    startGame();
-});
-
+playAgainBtn.addEventListener('click', () => { modal.classList.add('hidden'); startGame(); });
 startBtn.addEventListener('click', startGame);
-document.addEventListener('keydown', handleKeydown);
 
-// === INIT ===
 init();
 draw();
 loadLeaderboard();
