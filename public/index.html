@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Snake Game</h1>
+            <p class="subtitle">Ovladani: sipky nebo WASD</p>
+        </header>
+
+        <main>
+            <div class="game-area">
+                <div class="score-display">
+                    <span>Skore: </span>
+                    <span id="current-score">0</span>
+                </div>
+                <canvas id="game-canvas" width="400" height="400"></canvas>
+                <button id="start-btn" class="btn">Start</button>
+            </div>
+
+            <div class="leaderboard">
+                <h2>Zebricek</h2>
+                <div id="leaderboard-list">
+                    <p class="loading">Nacitam...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="game-over-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Game Over!</h2>
+            <p>Tvoje skore: <span id="final-score">0</span></p>
+            <form id="score-form">
+                <input
+                    type="text"
+                    id="player-name"
+                    placeholder="Zadej sve jmeno"
+                    maxlength="20"
+                    required
+                >
+                <button type="submit" class="btn">Ulozit skore</button>
+            </form>
+            <button id="play-again-btn" class="btn btn-secondary">Hrat znovu</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
