@@ -11,11 +11,8 @@ const leaderboardList = document.getElementById('leaderboard-list');
 
 const GRID_SIZE = 20;
 const CELL_SIZE = canvas.width / GRID_SIZE;
-
-// GitHub config
 const GITHUB_OWNER = 'EmperorKunDis';
 const GITHUB_REPO = 'WebProChalengeISS';
-const GITHUB_TOKEN = 'VLOZ_SVUJ_TOKEN_ZDE'; // <-- VLOZ TOKEN
 
 let snake = [];
 let food = { x: 0, y: 0 };
@@ -127,19 +124,15 @@ document.addEventListener('keydown', e => {
     if ((key === 'arrowright' || key === 'd') && direction.x !== -1) nextDirection = { x: 1, y: 0 };
 });
 
-// === GITHUB LEADERBOARD ===
+// === LEADERBOARD ===
 
 async function loadLeaderboard() {
     try {
-        // Nacti seznam souboru ze scores/
         const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/scores`);
         if (!res.ok) throw new Error();
         const files = await res.json();
-
-        // Filtruj jen JSON soubory
         const jsonFiles = files.filter(f => f.name.endsWith('.json'));
 
-        // Nacti obsah kazdeho souboru
         const scores = [];
         for (const file of jsonFiles) {
             try {
@@ -149,7 +142,6 @@ async function loadLeaderboard() {
             } catch {}
         }
 
-        // Serad podle score
         scores.sort((a, b) => b.score - a.score);
         const top10 = scores.slice(0, 10);
 
@@ -175,30 +167,14 @@ function renderLeaderboard(scores) {
 
 async function submitScore(name, playerScore) {
     try {
-        const timestamp = Date.now();
-        const filename = `${timestamp}_${name.replace(/[^a-zA-Z0-9]/g, '')}.json`;
-        const content = JSON.stringify({ name: name.substring(0, 20), score: playerScore, time: timestamp });
-
-        // Base64 encode
-        const contentBase64 = btoa(unescape(encodeURIComponent(content)));
-
-        // Upload do GitHub
-        await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/scores/${filename}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: `Add score: ${name} - ${playerScore}`,
-                content: contentBase64
-            })
+        await fetch('/api/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name.substring(0, 20), score: playerScore })
         });
-
-        // Reload leaderboard
-        setTimeout(loadLeaderboard, 1000);
+        setTimeout(loadLeaderboard, 2000);
     } catch (err) {
-        console.error('Chyba pri ukladani:', err);
+        console.error(err);
     }
 }
 
