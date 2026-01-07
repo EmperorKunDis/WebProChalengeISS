@@ -11,7 +11,11 @@ const leaderboardList = document.getElementById('leaderboard-list');
 
 const GRID_SIZE = 20;
 const CELL_SIZE = canvas.width / GRID_SIZE;
-const DB_URL = 'https://kvdb.io/EUhb41f6a5NM8yKSEkaDqG/scores';
+
+// GitHub config
+const GITHUB_OWNER = 'EmperorKunDis';
+const GITHUB_REPO = 'WebProChalengeISS';
+const GITHUB_TOKEN = 'VLOZ_SVUJ_TOKEN_ZDE'; // <-- VLOZ TOKEN
 
 let snake = [];
 let food = { x: 0, y: 0 };
@@ -123,14 +127,34 @@ document.addEventListener('keydown', e => {
     if ((key === 'arrowright' || key === 'd') && direction.x !== -1) nextDirection = { x: 1, y: 0 };
 });
 
-// LEADERBOARD - kvdb.io (free, no registration)
+// === GITHUB LEADERBOARD ===
+
 async function loadLeaderboard() {
     try {
-        const res = await fetch(DB_URL);
+        // Nacti seznam souboru ze scores/
+        const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/scores`);
         if (!res.ok) throw new Error();
-        const scores = await res.json();
-        if (scores && scores.length > 0) {
-            renderLeaderboard(scores);
+        const files = await res.json();
+
+        // Filtruj jen JSON soubory
+        const jsonFiles = files.filter(f => f.name.endsWith('.json'));
+
+        // Nacti obsah kazdeho souboru
+        const scores = [];
+        for (const file of jsonFiles) {
+            try {
+                const r = await fetch(file.download_url);
+                const data = await r.json();
+                scores.push(data);
+            } catch {}
+        }
+
+        // Serad podle score
+        scores.sort((a, b) => b.score - a.score);
+        const top10 = scores.slice(0, 10);
+
+        if (top10.length > 0) {
+            renderLeaderboard(top10);
         } else {
             leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
         }
@@ -151,25 +175,30 @@ function renderLeaderboard(scores) {
 
 async function submitScore(name, playerScore) {
     try {
-        let scores = [];
-        try {
-            const res = await fetch(DB_URL);
-            if (res.ok) scores = await res.json() || [];
-        } catch {}
+        const timestamp = Date.now();
+        const filename = `${timestamp}_${name.replace(/[^a-zA-Z0-9]/g, '')}.json`;
+        const content = JSON.stringify({ name: name.substring(0, 20), score: playerScore, time: timestamp });
 
-        scores.push({ name: name.substring(0, 20), score: playerScore });
-        scores.sort((a, b) => b.score - a.score);
-        scores = scores.slice(0, 10);
+        // Base64 encode
+        const contentBase64 = btoa(unescape(encodeURIComponent(content)));
 
-        await fetch(DB_URL, {
+        // Upload do GitHub
+        await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/scores/${filename}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(scores)
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: `Add score: ${name} - ${playerScore}`,
+                content: contentBase64
+            })
         });
 
-        renderLeaderboard(scores);
+        // Reload leaderboard
+        setTimeout(loadLeaderboard, 1000);
     } catch (err) {
-        console.error(err);
+        console.error('Chyba pri ukladani:', err);
     }
 }
 
