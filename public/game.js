@@ -11,7 +11,9 @@ const leaderboardList = document.getElementById('leaderboard-list');
 
 const GRID_SIZE = 20;
 const CELL_SIZE = canvas.width / GRID_SIZE;
-const STORAGE_KEY = 'snake_leaderboard';
+
+// JSONBlob - globalni storage (zadna registrace)
+const API_URL = 'https://jsonblob.com/api/jsonBlob/019b97ce-5dcb-7445-866b-5cf99d922efd';
 
 let snake = [];
 let food = { x: 0, y: 0 };
@@ -220,25 +222,19 @@ function handleKeydown(e) {
     }
 }
 
-function getLeaderboard() {
+async function loadLeaderboard() {
     try {
-        const data = localStorage.getItem(STORAGE_KEY);
-        return data ? JSON.parse(data) : [];
-    } catch {
-        return [];
-    }
-}
-
-function saveLeaderboard(scores) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
-}
-
-function loadLeaderboard() {
-    const scores = getLeaderboard();
-    if (scores.length > 0) {
-        renderLeaderboard(scores);
-    } else {
-        leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        const scores = data.scores || [];
+        if (scores.length > 0) {
+            renderLeaderboard(scores);
+        } else {
+            leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
+        }
+    } catch (error) {
+        console.error('Chyba:', error);
+        leaderboardList.innerHTML = '<p class="loading">Nelze nacist zebricek</p>';
     }
 }
 
@@ -265,20 +261,40 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function submitScore(name, playerScore) {
-    const scores = getLeaderboard();
-    scores.push({ name, score: playerScore, timestamp: Date.now() });
-    scores.sort((a, b) => b.score - a.score);
-    const top10 = scores.slice(0, 10);
-    saveLeaderboard(top10);
-    loadLeaderboard();
+async function submitScore(name, playerScore) {
+    try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        const scores = data.scores || [];
+
+        scores.push({ name, score: playerScore });
+        scores.sort((a, b) => b.score - a.score);
+        const top10 = scores.slice(0, 10);
+
+        await fetch(API_URL, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scores: top10 })
+        });
+
+        loadLeaderboard();
+    } catch (error) {
+        console.error('Chyba pri ukladani:', error);
+    }
 }
 
-scoreForm.addEventListener('submit', (e) => {
+scoreForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = playerNameInput.value.trim();
     if (name && score > 0) {
-        submitScore(name, score);
+        const submitBtn = scoreForm.querySelector('button');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Ukladam...';
+
+        await submitScore(name, score);
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Ulozit skore';
         modal.classList.add('hidden');
         playerNameInput.value = '';
     }
