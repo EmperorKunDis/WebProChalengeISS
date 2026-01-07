@@ -12,9 +12,6 @@ const leaderboardList = document.getElementById('leaderboard-list');
 const GRID_SIZE = 20;
 const CELL_SIZE = canvas.width / GRID_SIZE;
 
-// JSONBlob - globalni storage (zadna registrace)
-const API_URL = 'https://jsonblob.com/api/jsonBlob/019b97ce-5dcb-7445-866b-5cf99d922efd';
-
 let snake = [];
 let food = { x: 0, y: 0 };
 let direction = { x: 1, y: 0 };
@@ -222,18 +219,21 @@ function handleKeydown(e) {
     }
 }
 
+// === LEADERBOARD FUNCTIONS ===
+
 async function loadLeaderboard() {
     try {
-        const response = await fetch(API_URL);
+        const response = await fetch('/api/leaderboard');
         const data = await response.json();
         const scores = data.scores || [];
+
         if (scores.length > 0) {
             renderLeaderboard(scores);
         } else {
             leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
         }
     } catch (error) {
-        console.error('Chyba:', error);
+        console.error('Chyba pri nacitani:', error);
         leaderboardList.innerHTML = '<p class="loading">Nelze nacist zebricek</p>';
     }
 }
@@ -263,25 +263,25 @@ function escapeHtml(text) {
 
 async function submitScore(name, playerScore) {
     try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
-        const scores = data.scores || [];
-
-        scores.push({ name, score: playerScore });
-        scores.sort((a, b) => b.score - a.score);
-        const top10 = scores.slice(0, 10);
-
-        await fetch(API_URL, {
-            method: 'PUT',
+        const response = await fetch('/api/leaderboard', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ scores: top10 })
+            body: JSON.stringify({ name, score: playerScore })
         });
 
-        loadLeaderboard();
+        const data = await response.json();
+
+        if (data.scores) {
+            renderLeaderboard(data.scores);
+        } else {
+            loadLeaderboard();
+        }
     } catch (error) {
         console.error('Chyba pri ukladani:', error);
     }
 }
+
+// === EVENT LISTENERS ===
 
 scoreForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -308,6 +308,7 @@ playAgainBtn.addEventListener('click', () => {
 startBtn.addEventListener('click', startGame);
 document.addEventListener('keydown', handleKeydown);
 
+// === INIT ===
 init();
 draw();
 loadLeaderboard();
