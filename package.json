@@ -1,16 +1,5 @@
 {
   "name": "snake-game",
   "version": "1.0.0",
-  "description": "Snake game with leaderboard",
-  "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'No build step needed'",
-    "deploy": "vercel --prod"
-  },
-  "dependencies": {
-    "@vercel/kv": "^2.0.0"
-  },
-  "devDependencies": {
-    "vercel": "^37.0.0"
-  }
+  "description": "Snake game with leaderboard"
 }

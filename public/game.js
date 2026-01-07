@@ -11,6 +11,7 @@ const leaderboardList = document.getElementById('leaderboard-list');
 
 const GRID_SIZE = 20;
 const CELL_SIZE = canvas.width / GRID_SIZE;
+const STORAGE_KEY = 'snake_leaderboard';
 
 let snake = [];
 let food = { x: 0, y: 0 };
@@ -219,19 +220,25 @@ function handleKeydown(e) {
     }
 }
 
-async function loadLeaderboard() {
+function getLeaderboard() {
     try {
-        const response = await fetch('/api/scores');
-        const data = await response.json();
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch {
+        return [];
+    }
+}
 
-        if (data.scores && data.scores.length > 0) {
-            renderLeaderboard(data.scores);
-        } else {
-            leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
-        }
-    } catch (error) {
-        console.error('Chyba pri nacitani zebricku:', error);
-        leaderboardList.innerHTML = '<p class="loading">Nelze nacist zebricek</p>';
+function saveLeaderboard(scores) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+}
+
+function loadLeaderboard() {
+    const scores = getLeaderboard();
+    if (scores.length > 0) {
+        renderLeaderboard(scores);
+    } else {
+        leaderboardList.innerHTML = '<p class="loading">Zadne skore zatim</p>';
     }
 }
 
@@ -258,43 +265,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-async function submitScore(name, score) {
-    try {
-        const response = await fetch('/api/submit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name, score })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            await loadLeaderboard();
-            return true;
-        } else {
-            console.error('Chyba pri ukladani:', data.error);
-            return false;
-        }
-    } catch (error) {
-        console.error('Chyba pri odesilani skore:', error);
-        return false;
-    }
+function submitScore(name, playerScore) {
+    const scores = getLeaderboard();
+    scores.push({ name, score: playerScore, timestamp: Date.now() });
+    scores.sort((a, b) => b.score - a.score);
+    const top10 = scores.slice(0, 10);
+    saveLeaderboard(top10);
+    loadLeaderboard();
 }
 
-scoreForm.addEventListener('submit', async (e) => {
+scoreForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = playerNameInput.value.trim();
     if (name && score > 0) {
-        const submitBtn = scoreForm.querySelector('button');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Ukladam...';
-
-        await submitScore(name, score);
-
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Ulozit skore';
+        submitScore(name, score);
         modal.classList.add('hidden');
         playerNameInput.value = '';
     }
